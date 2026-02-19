@@ -37,6 +37,7 @@ from tqdm import tqdm
 SERVER_TYPES = (
     "hf",
     "SeerAttn",
+    "SketchWalk",
 )
 
 
@@ -103,12 +104,19 @@ parser.add_argument("--use_snapkv", action="store_true")
 parser.add_argument("--trust_remote_code", action="store_true")
 parser.add_argument("--threshold",  type=float, default=0.0)
 
+# SketchWalk
+parser.add_argument("--block_size", type=int, default=64, help="SketchWalk block size")
+parser.add_argument("--sketch_dim", type=int, default=64, help="SketchWalk sketch dimension")
+parser.add_argument("--top_k_blocks", type=int, default=16, help="SketchWalk top-k blocks")
+parser.add_argument("--sparsity_exponent", type=int, default=8, help="SketchWalk sparsity exponent")
+
 args = parser.parse_args()
 args.stop_words = list(filter(None, args.stop_words.split(",")))
 # if args.server_type == 'hf' or args.server_type == 'gemini' or args.server_type == 'minference':
 if args.server_type in [
     "hf",
     "SeerAttn",
+    "SketchWalk",
 ]:
     args.threads = 1
 
@@ -142,6 +150,24 @@ def get_llm(tokens_to_generate):
             stop=args.stop_words,
             max_new_tokens=tokens_to_generate,
             threshold=args.threshold,
+        )
+
+    elif args.server_type == "SketchWalk":
+        from model_wrappers import SketchWalkModel
+        print("Using SketchWalkModel model:" , args.model_name_or_path)
+        llm = SketchWalkModel(
+            name_or_path=args.model_name_or_path,
+            do_sample=args.temperature > 0,
+            repetition_penalty=1,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            stop=args.stop_words,
+            max_new_tokens=tokens_to_generate,
+            block_size=getattr(args, 'block_size', 64),
+            sketch_dim=getattr(args, 'sketch_dim', 64),
+            top_k_blocks=getattr(args, 'top_k_blocks', 16),
+            sparsity_exponent=getattr(args, 'sparsity_exponent', 8),
         )
 
     else:
